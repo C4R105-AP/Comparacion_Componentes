@@ -8,7 +8,8 @@ ejemplos/
 _analysis/
 ~$*
 build/
-dist/
+dist/*
+!dist/ComparadorBOM.zip
 *.spec.bak
 .cursor/
 *.log

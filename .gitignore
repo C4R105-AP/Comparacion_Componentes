@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+comparacion_bom.xlsx
+ejemplos/
+_analysis/
+~$*
+build/
+dist/
+*.spec.bak
+.cursor/
+*.log
+Thumbs.db

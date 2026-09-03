@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Comparador de BOM</title>
+  <style>
+    :root {
+      --ink: #1a2421;
+      --muted: #5c6b66;
+      --line: #d5ddd8;
+      --paper: #f3f1ea;
+      --card: #fffdf8;
+      --header: #1e3a34;
+      --accent: #c45c26;
+      --ok-bg: #dcefe4;
+      --green: #548235;
+      --yellow: #ffff00;
+      --red: #c00000;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; overflow-anchor: none; }
+    header {
+      background: var(--header);
+      color: #f4efe6;
+      padding: 20px 28px 18px;
+    }
+    header h1 { margin: 0; font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
+    main { max-width: 1400px; margin: 0 auto; padding: 22px 22px 64px; }
+    #scrollPad { height: 0; pointer-events: none; }
+    h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 12px; }
+    .drop {
+      border: 1.5px dashed #8aa197;
+      background: var(--card);
+      border-radius: 10px;
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      min-height: 92px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drop.busy { cursor: wait; pointer-events: none; }
+    .drop-busy {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .drop-busy-head {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .drop-now {
+      color: #9aa8a2;
+      font-style: italic;
+      font-size: 13px;
+      text-align: center;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .drop-now:empty { display: none; }
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid #c5d0c0;
+      border-top-color: var(--header);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .files-panel {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+    }
+    .files-panel.hidden { display: none; }
+    .files-panel summary {
+      cursor: pointer;
+      padding: 10px 14px;
+      font-weight: 650;
+      list-style: none;
+    }
+    .files-panel summary::-webkit-details-marker { display: none; }
+    .files-panel summary::after { content: " ▾"; color: var(--muted); font-weight: 400; }
+    .files-panel[open] summary { border-bottom: 1px solid var(--line); }
+    .files-panel .files-list { padding: 10px 12px 12px; }
+    .files-panel .files { margin-top: 0; padding: 0; }
+    .files-clear {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 0 14px 12px;
+    }
+    .files-clear button { grid-column: 2; }
+    .drop strong { color: var(--ink); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    button, .btn {
+      border: 0;
+      background: var(--header);
+      color: #fff;
+      padding: 9px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font: inherit;
+    }
+    button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    label.opt { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+    select, .search {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+      background: #fff;
+    }
+    .search { width: 280px; }
+    .files { display: grid; gap: 6px; margin-top: 14px; }
+    .file {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px 8px 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .file .name {
+      font-weight: 650;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid var(--line);
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-right: 6px;
+    }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      width: 100%;
+    }
+    .stat:hover { border-color: #8aa197; }
+    .stat.on { border-color: var(--header); background: var(--ok-bg); }
+    .stat b { display: block; font-size: 26px; letter-spacing: -0.03em; }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .tabs { display: flex; gap: 6px; margin: 0; }
+    .table-bar { justify-content: flex-start; }
+    #versionBar { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    #versionBar.hidden { display: none; }
+    #famSelect { min-width: 160px; }
+    button.print-tab {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      padding: 9px 14px;
+    }
+    button.print-tab:hover { color: var(--ink); background: var(--card); }
+    .print-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .print-banner { display: none; }
+    .tabs button { background: transparent; color: var(--muted); border: 1px solid transparent; }
+    .tabs button.on { color: var(--ink); border-color: var(--line); background: var(--card); }
+    .table-wrap {
+      overflow: auto;
+      height: 640px;
+      max-height: 640px;
+      width: 90%;
+      margin: 16px auto 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+    #grid { width: 100%; }
+    #grid.shrink { width: max-content; max-width: 100%; margin: 0 auto; }
+    #grid th.fit, #grid td.fit {
+      white-space: nowrap;
+      width: 1px;
+    }
+    th { position: sticky; top: 0; background: #e8eee9; font-weight: 650; z-index: 1; }
+    td.mono { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+    td.muted { color: var(--muted); }
+    .hint { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+    .error { color: #9b2c2c; margin-top: 10px; }
+    .hidden { display: none; }
+    details.ver-drop { position: relative; width: 220px; flex-shrink: 0; }
+    details.ver-drop summary {
+      list-style: none;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    details.ver-drop summary::-webkit-details-marker { display: none; }
+    .ver-menu {
+      position: absolute;
+      left: 0;
+      z-index: 5;
+      margin-top: 4px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      width: 220px;
+      box-sizing: border-box;
+      max-height: 280px;
+      overflow: auto;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .ver-menu label { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 13px; }
+    table.matrix { width: max-content; min-width: 100%; }
+    table.matrix th, table.matrix td { border: 1px solid #c5d0c0; text-align: center; white-space: nowrap; }
+    table.matrix th { background: #e8eee9; color: var(--ink); position: sticky; }
+    table.matrix thead tr:nth-child(1) th { top: 0; z-index: 3; }
+    table.matrix thead tr:nth-child(2) th { top: 28px; z-index: 2; }
+    table.matrix td.desig {
+      text-align: center;
+      position: sticky;
+      left: 0;
+      background: #fff;
+      z-index: 1;
+    }
+    table.matrix th.desig {
+      text-align: center;
+      vertical-align: middle;
+      position: sticky;
+      left: 0;
+      background: #e8eee9;
+      z-index: 4;
+    }
+    table.matrix td.y { background: var(--yellow); }
+    table.matrix td.red { color: var(--red); font-weight: 650; }
+    th .flt {
+      margin-left: 4px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0 2px;
+      opacity: 0.55;
+    }
+    th .flt.on { opacity: 1; }
+    th { white-space: nowrap; }
+    th.qty {
+      white-space: normal;
+      width: auto;
+      min-width: 4.2rem;
+      line-height: 1.2;
+      font-size: 11px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th.qty .qty-label {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.2;
+      max-height: 3.6em;
+      text-align: center;
+      margin: 0 auto;
+    }
+    th.qty .flt { display: block; margin: 2px auto 0; }
+    td.qty { text-align: center; white-space: nowrap; vertical-align: middle; }
+    @media (max-width: 800px) { .stats { grid-template-columns: 1fr 1fr; } }
+    @media print {
+      @page { size: A4 landscape; margin: 3mm; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+      }
+      .no-print, header, .drop, .files-panel, .error { display: none !important; }
+      #stats, #versionBar { display: none !important; }
+      main { max-width: none; margin: 0 !important; padding: 0 !important; }
+      #results { display: block !important; }
+      #results > h2 { display: none; }
+      .print-banner {
+        display: block;
+        margin: 0 0 8px;
+        font-size: 13px;
+        color: #333;
+      }
+      #printArea {
+        box-sizing: border-box;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      .table-wrap {
+        max-height: none !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        border: 0;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+      }
+      #scrollPad { display: none !important; }
+      #grid, table.matrix { max-width: 100%; width: 100%; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; }
+      thead { display: table-header-group; }
+      th, table.matrix td.desig, table.matrix th.desig {
+        position: static !important;
+        top: auto !important;
+        left: auto !important;
+      }
+      th.qty { width: auto; max-width: none; font-size: 8pt; }
+      .flt { display: none !important; }
+      html.fit-print thead { display: table-row-group !important; }
+      html.fit-print #printArea {
+        zoom: var(--print-zoom, 1);
+        width: max-content;
+        max-width: none;
+      }
+      html.fit-print .table-wrap,
+      html.fit-print #grid,
+      html.fit-print table.matrix {
+        width: max-content !important;
+        max-width: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Comparador de BOM</h1>
+  </header>
+  <main>
+    <h2 class="no-print">Archivos</h2>
+    <div class="drop no-print busy" id="drop">
+      <span id="dropIdle" class="hidden">Arrastra aqui los .xls / .xlsx o <strong>pulsa para elegirlos</strong></span>
+      <span id="dropBusy" class="drop-busy">
+        <span class="drop-busy-head">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="dropBusyText">Cargando archivos…</span>
+        </span>
+        <span class="drop-now" id="dropNow"></span>
+      </span>
+      <input id="fileInput" type="file" accept=".xls,.xlsx" multiple hidden />
+    </div>
+    <div class="error hidden no-print" id="error"></div>
+    <div class="hint hidden no-print" id="notice"></div>
+    <details class="files-panel" id="filesPanel">
+      <summary id="filesSummary">Archivos cargados</summary>
+      <div class="files-list">
+        <div class="files-clear">
+          <button class="secondary" id="btnClear" type="button" disabled>Quitar todos</button>
+        </div>
+        <div class="files" id="files"></div>
+      </div>
+    </details>
+
+    <section id="results" class="hidden">
+      <h2 style="margin-top:28px">Resultado</h2>
+      <div class="stats" id="stats"></div>
+      <div class="row table-bar no-print">
+        <div class="tabs" id="tabs">
+          <button class="on" data-tab="shared" type="button">Comunes</button>
+          <button data-tab="partial" type="button">Diferencias</button>
+          <button data-tab="exclusive" type="button">Exclusivos</button>
+          <button data-tab="versions" type="button">Versiones</button>
+        </div>
+        <input class="search" id="search" placeholder="Filtrar por designator o codigo" />
+        <div class="hidden" id="versionBar">
+          <label class="opt">Familia
+            <select id="famSelect"></select>
+          </label>
+          <details class="ver-drop" id="verDrop">
+            <summary id="verSummary">Versiones: Todas</summary>
+            <div class="ver-menu" id="verMenu">
+              <label><input id="verAll" type="checkbox" checked /> Todas</label>
+              <div id="verChecks"></div>
+            </div>
+          </details>
+        </div>
+        <div class="print-actions">
+          <label class="opt"><input id="printFit" type="checkbox" /> Ajustar a la página</label>
+          <button class="print-tab" id="btnExcel" type="button">Descargar Excel</button>
+          <button class="print-tab" id="btnPrint" type="button">Imprimir</button>
+        </div>
+      </div>
+      <div id="printArea">
+        <p class="print-banner" id="printBanner"></p>
+        <div class="table-wrap" id="gridHost">
+          <table id="grid"></table>
+        </div>
+      </div>
+    </section>
+    <div id="scrollPad" aria-hidden="true"></div>
+  </main>
+  <script>
+    const state = { files: [], result: null, tab: "shared", family: "", selected: "all" };
+
+    const $ = (id) => document.getElementById(id);
+    const showError = (msg) => { const el = $("error"); el.textContent = msg || ""; el.classList.toggle("hidden", !msg); };
+    const showNotice = (msg) => { const el = $("notice"); if (!el) return; el.textContent = msg || ""; el.classList.toggle("hidden", !msg); };
+
+    async function api(url, opts) {
+      const res = await fetch(url, opts);
+      if (res.status === 204) return null;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      return data;
+    }
+
+    function renderFiles() {
+      const panel = $("filesPanel");
+      const wasOpen = panel.open;
+      const n = state.files.length;
+      panel.classList.remove("hidden");
+      $("filesSummary").textContent = n
+        ? `${n} archivo${n === 1 ? "" : "s"} cargado${n === 1 ? "" : "s"}`
+        : "Archivos cargados";
+      $("btnClear").disabled = n === 0;
+      $("files").innerHTML = state.files.map((f) => `
+        <article class="file">
+          <div class="name" title="${f.name}">${f.product || f.name}</div>
+          <button class="secondary" data-del="${f.id}" type="button">Quitar</button>
+        </article>
+      `).join("");
+      panel.open = n > 0 && wasOpen;
+      document.querySelectorAll("[data-del]").forEach((btn) => {
+        btn.onclick = async () => {
+          setBusy(true, "Actualizando…");
+          try {
+            const data = await api("/api/files/" + btn.dataset.del, { method: "DELETE" });
+            state.files = data.files;
+            renderFiles();
+            await runCompare();
+          } catch (err) { showError(err.message); }
+          finally { setBusy(false); }
+        };
+      });
+    }
+
+    function setBusy(on, text) {
+      $("drop").classList.toggle("busy", !!on);
+      $("dropIdle").classList.toggle("hidden", !!on);
+      $("dropBusy").classList.toggle("hidden", !on);
+      if (on && text) $("dropBusyText").textContent = text;
+      if (!on) $("dropNow").textContent = "";
+    }
+
+    async function uploadList(fileList) {
+      showError("");
+      showNotice("");
+      const files = [...fileList].filter((f) => /\.xls$|\.xlsx$/i.test(f.name));
+      if (!files.length) {
+        showError("Solo se aceptan archivos .xls / .xlsx");
+        return;
+      }
+      setBusy(true, `Cargando 1 de ${files.length}…`);
+      const omitted = [];
+      try {
+        for (let i = 0; i < files.length; i++) {
+          $("dropBusyText").textContent = `Cargando ${i + 1} de ${files.length}…`;
+          $("dropNow").textContent = files[i].name;
+          const body = new FormData();
+          body.append("files", files[i]);
+          const data = await api("/api/files", { method: "POST", body });
+          state.files = data.files;
+          if (data.omitted?.length) omitted.push(...data.omitted);
+          renderFiles();
+        }
+        $("dropNow").textContent = "";
+        if (omitted.length) {
+          showNotice(
+            omitted.length === 1
+              ? `Omitido ${omitted[0]} (BOM CAD: no se usa en el cruce de componentes).`
+              : `Omitidos ${omitted.length} archivos BOM CAD (no se usan en el cruce de componentes).`
+          );
+        } else {
+          showNotice("");
+        }
+        setBusy(true, "Comparando…");
+        await runCompare();
+      } catch (err) { showError(err.message); }
+      finally { setBusy(false); }
+    }
+
+    const drop = $("drop");
+    drop.onclick = () => $("fileInput").click();
+    $("fileInput").onchange = (ev) => uploadList(ev.target.files);
+    drop.ondragover = (ev) => { ev.preventDefault(); drop.classList.add("over"); };
+    drop.ondragleave = () => drop.classList.remove("over");
+    drop.ondrop = (ev) => {
+      ev.preventDefault();
+      drop.classList.remove("over");
+      uploadList(ev.dataTransfer.files);
+    };
+
+    $("btnClear").onclick = async () => {
+      await api("/api/files", { method: "DELETE" });
+      state.files = [];
+      state.result = null;
+      renderFiles();
+      $("results").classList.add("hidden");
+    };
+
+    async function runCompare() {
+      if (state.files.length < 2) {
+        state.result = null;
+        $("results").classList.add("hidden");
+        return;
+      }
+      showError("");
+      setBusy(true, "Comparando…");
+      try {
+        const data = await api("/api/compare", { method: "POST" });
+        state.result = data;
+        const matrices = data.version_matrices || [];
+        if (!matrices.some((m) => m.familia === state.family)) {
+          state.family = matrices[0]?.familia || "";
+          state.selected = "all";
+        }
+        renderResult();
+      } catch (err) { showError(err.message); }
+    }
+
+    function printView() {
+      const names = { shared: "Comunes", partial: "Diferencias", exclusive: "Exclusivos", versions: "Versiones" };
+      const parts = [names[state.tab] || state.tab];
+      if (state.tab === "versions") {
+        const mx = currentMatrix();
+        if (mx) {
+          parts.push(mx.familia_corta);
+          const idxs = selectedIndexes(mx);
+          const labels = idxs.map((i) => mx.versiones[i].label);
+          parts.push(labels.length === mx.versiones.length ? "Todas" : labels.join(", "));
+        }
+      }
+      const q = ($("search").value || "").trim();
+      if (q) parts.push("filtro: " + q);
+      $("printBanner").textContent = parts.join(" · ");
+
+      const root = document.documentElement;
+      const fit = $("printFit")?.checked;
+      const clearFit = () => {
+        root.classList.remove("fit-print");
+        root.style.removeProperty("--print-zoom");
+      };
+      if (fit) {
+        const mm = 96 / 25.4;
+        const pageW = (297 - 6) * mm;
+        const table = $("printArea")?.querySelector("table");
+        const tableW = table ? Math.max(table.scrollWidth, table.getBoundingClientRect().width) : 0;
+        const zoom = tableW > 0 ? Math.min(1, pageW / tableW) : 1;
+        root.style.setProperty("--print-zoom", String(zoom));
+        root.classList.add("fit-print");
+      } else {
+        clearFit();
+      }
+      window.addEventListener("afterprint", clearFit, { once: true });
+      window.print();
+    }
+    $("btnPrint").onclick = printView;
+
+    async function downloadExcel() {
+      if (!state.result) {
+        showError("Compara primero");
+        return;
+      }
+      showError("");
+      try {
+        const res = await fetch("/api/download");
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || res.statusText);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "comparacion_bom.xlsx";
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+    $("btnExcel").onclick = downloadExcel;
+
+    function selectTab(tab) {
+      state.tab = tab;
+      document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+      document.querySelectorAll(".stat").forEach((s) => s.classList.toggle("on", s.dataset.tab === tab));
+      renderGrid();
+    }
+
+    document.querySelectorAll("#tabs button").forEach((btn) => {
+      btn.addEventListener("mousedown", (ev) => ev.preventDefault());
+      btn.onclick = () => selectTab(btn.dataset.tab);
+    });
+    $("search").oninput = renderGrid;
+    $("famSelect").onchange = () => {
+      state.family = $("famSelect").value;
+      state.selected = "all";
+      renderGrid();
+    };
+    $("verAll").addEventListener("mousedown", (ev) => ev.preventDefault());
+    $("verAll").closest("label")?.addEventListener("mousedown", (ev) => ev.preventDefault());
+    $("verMenu")?.addEventListener("mousedown", (ev) => ev.preventDefault());
+    $("verAll").onchange = () => {
+      if ($("verAll").checked) state.selected = "all";
+      else state.selected = [];
+      renderGrid();
+    };
+    document.addEventListener("mousedown", (ev) => {
+      const drop = $("verDrop");
+      if (drop && drop.open && !drop.contains(ev.target)) drop.open = false;
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        const drop = $("verDrop");
+        if (drop) drop.open = false;
+      }
+    });
+
+    function currentMatrix() {
+      const r = state.result;
+      if (!r) return null;
+      return (r.version_matrices || []).find((m) => m.familia === state.family) || r.version_matrices[0] || null;
+    }
+
+    function selectedIndexes(matrix) {
+      if (state.selected === "all") return matrix.versiones.map((_, i) => i);
+      return matrix.versiones.map((v, i) => state.selected.includes(v.key) ? i : -1).filter((i) => i >= 0);
+    }
+
+    function fillVersionBar(matrix, families) {
+      $("versionBar").classList.toggle("hidden", state.tab !== "versions");
+      if (state.tab !== "versions") return;
+      const comparable = families.filter((f) => f.n >= 2);
+      const famValue = state.family || comparable[0]?.familia || "";
+      if ($("famSelect").dataset.sig !== comparable.map((f) => f.familia).join("|")) {
+        $("famSelect").dataset.sig = comparable.map((f) => f.familia).join("|");
+        $("famSelect").innerHTML = comparable.map((f) =>
+          `<option value="${f.familia}">${f.familia_corta} (${f.n})</option>`
+        ).join("");
+      }
+      $("famSelect").value = famValue;
+      if (!matrix) {
+        $("verChecks").innerHTML = "";
+        $("verChecks").dataset.sig = "";
+        $("verSummary").textContent = "Versiones";
+        return;
+      }
+      const sig = matrix.versiones.map((v) => v.key).join("|");
+      if ($("verChecks").dataset.sig !== sig) {
+        $("verChecks").dataset.sig = sig;
+        $("verChecks").innerHTML = matrix.versiones.map((v) =>
+          `<label><input type="checkbox" value="${v.key}" /> ${v.label}</label>`
+        ).join("");
+        document.querySelectorAll("#verChecks input").forEach((box) => {
+          box.addEventListener("mousedown", (ev) => ev.preventDefault());
+          box.onchange = () => {
+            const boxes = [...document.querySelectorAll("#verChecks input")];
+            const keys = boxes.filter((b) => b.checked).map((b) => b.value);
+            $("verAll").checked = keys.length === boxes.length;
+            state.selected = keys.length === boxes.length ? "all" : keys;
+            renderGrid();
+          };
+        });
+      }
+      const all = state.selected === "all";
+      const boxes = [...document.querySelectorAll("#verChecks input")];
+      boxes.forEach((box) => {
+        box.checked = all || (Array.isArray(state.selected) && state.selected.includes(box.value));
+      });
+      $("verAll").checked = all || (boxes.length > 0 && boxes.every((b) => b.checked));
+      const n = all ? boxes.length : boxes.filter((b) => b.checked).length;
+      $("verSummary").textContent = n === boxes.length
+        ? "Versiones: Todas"
+        : n
+          ? `Versiones: ${n}/${boxes.length}`
+          : "Versiones: ninguna";
+    }
+
+    function highlightSubset(cells) {
+      const codes = cells.filter((c) => c.present && c.codigo).map((c) => c.codigo);
+      const counts = {};
+      codes.forEach((n) => { counts[n] = (counts[n] || 0) + 1; });
+      const mode = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+      const distinct = new Set(codes).size > 1;
+      return cells.map((c) => ({
+        ...c,
+        yellow: !c.present || c.fitted === "NotFitted",
+        code_red: distinct && c.present && c.codigo && c.codigo !== mode,
+      }));
+    }
+
+    function cellKey(td) {
+      return (td?.textContent || "").trim();
+    }
+    function compareCol(a, b, col, dir) {
+      const ta = cellKey(a.cells[col]);
+      const tb = cellKey(b.cells[col]);
+      const na = Number(ta.replace(",", "."));
+      const nb = Number(tb.replace(",", "."));
+      const aNum = ta !== "" && Number.isFinite(na);
+      const bNum = tb !== "" && Number.isFinite(nb);
+      let cmp = 0;
+      if (aNum && bNum) cmp = na - nb;
+      else cmp = ta.localeCompare(tb, "es", { numeric: true, sensitivity: "base" });
+      return cmp * dir;
+    }
+    function sortTable(table, col) {
+      const next = table._sort?.col === col && table._sort.dir === 1 ? -1 : 1;
+      table._sort = { col, dir: next };
+      const body = table.tBodies[0];
+      const rows = [...body.rows];
+      rows.sort((a, b) => compareCol(a, b, col, next));
+      rows.forEach((r) => body.appendChild(r));
+      table.querySelectorAll(".flt").forEach((btn) => {
+        const c = Number(btn.dataset.col);
+        const on = table._sort.col === c;
+        btn.classList.toggle("on", on);
+        btn.textContent = on ? (table._sort.dir === 1 ? "▲" : "▼") : "▾";
+      });
+    }
+    function headerColumns(table) {
+      const thead = table.tHead;
+      if (!thead) return [];
+      if (thead.rows.length === 1) {
+        return [...thead.rows[0].cells].map((th, col) => ({ th, col }));
+      }
+      const map = [{ th: thead.rows[0].cells[0], col: 0 }];
+      let col = 1;
+      [...thead.rows[1].cells].forEach((th) => { map.push({ th, col }); col += 1; });
+      return map;
+    }
+    function bindExcelFilters(table) {
+      if (!table || !table.tHead || !table.tBodies[0]) return;
+      table._sort = null;
+      headerColumns(table).forEach(({ th, col }) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "flt";
+        btn.dataset.col = String(col);
+        btn.textContent = "▾";
+        btn.title = "Ordenar";
+        th.appendChild(btn);
+        btn.onclick = (ev) => {
+          ev.stopPropagation();
+          sortTable(table, col);
+        };
+      });
+    }
+
+    function cellsDiffer(cells) {
+      const key = (c) => `${c.present ? 1 : 0}|${c.codigo || ""}|${c.layer || ""}|${c.fitted || ""}`;
+      return cells.some((c) => key(c) !== key(cells[0]));
+    }
+
+    function renderVersionMatrix(matrix, q) {
+      const idxs = selectedIndexes(matrix);
+      if (idxs.length < 2) {
+        return `<p class="hint">Elige al menos dos versiones de ${matrix.familia_corta} (o Todas).</p>`;
+      }
+      const changed = (matrix.filas || []).filter((row) => cellsDiffer(idxs.map((i) => row.celdas[i])));
+      if (!changed.length) {
+        return `<p class="hint">No hay cambios entre las versiones seleccionadas.</p>`;
+      }
+      const versions = idxs.map((i) => matrix.versiones[i]);
+      const groupHeads = versions.map((v) => `<th colspan="3">${v.label}</th>`).join("");
+      const subHeads = versions.map(() => `<th>Codigo</th><th>Layer</th><th>Fitted</th>`).join("");
+      const rows = changed.filter((row) => {
+        if (!q) return true;
+        return JSON.stringify(row).toLowerCase().includes(q);
+      });
+      if (!rows.length) {
+        return `<p class="hint">No hay coincidencias con el filtro.</p>`;
+      }
+      const body = rows.map((row) => {
+        const cells = highlightSubset(idxs.map((i) => row.celdas[i]));
+        const tds = cells.map((c) => {
+          const y = c.yellow ? " y" : "";
+          const red = c.code_red ? " red" : "";
+          return `<td class="mono${y}${red}">${c.present ? c.codigo : ""}</td><td class="${y.trim()}">${c.present ? c.layer : ""}</td><td class="${y.trim()}">${c.present ? c.fitted : ""}</td>`;
+        }).join("");
+        return `<tr><td class="desig mono">${row.designator}</td>${tds}</tr>`;
+      }).join("");
+      return `<table class="matrix">
+        <thead>
+          <tr><th class="desig" rowspan="2">${matrix.familia_corta}</th>${groupHeads}</tr>
+          <tr>${subHeads}</tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
+
+    function renderResult() {
+      const r = state.result;
+      $("results").classList.remove("hidden");
+      if (state.tab === "shared" && !r.stats.comunes && r.stats.diferencias) {
+        state.tab = "partial";
+      }
+      $("stats").innerHTML = `
+        <button type="button" class="stat" data-tab="shared"><b>${r.stats.comunes}</b><span>en todos los archivos</span></button>
+        <button type="button" class="stat" data-tab="partial"><b>${r.stats.diferencias}</b><span>en algunos, no en todos</span></button>
+        <button type="button" class="stat" data-tab="exclusive"><b>${r.stats.exclusivos}</b><span>solo en una BOM</span></button>
+      `;
+      $("stats").querySelectorAll(".stat").forEach((el) => {
+        el.addEventListener("mousedown", (ev) => ev.preventDefault());
+        el.onclick = () => selectTab(el.dataset.tab);
+      });
+      document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === state.tab));
+      document.querySelectorAll(".stat").forEach((s) => s.classList.toggle("on", s.dataset.tab === state.tab));
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const se = document.scrollingElement || document.documentElement;
+      const host = $("gridHost");
+      const pad = $("scrollPad");
+      const savedY = se.scrollTop;
+      const inner = host ? host.scrollTop : 0;
+      const active = document.activeElement;
+      if (active && active.closest && active.closest(".ver-menu")) active.blur();
+      try {
+        renderGridInner();
+      } finally {
+        if (pad) pad.style.height = "0px";
+        const maxScroll = Math.max(0, se.scrollHeight - se.clientHeight);
+        const extra = Math.max(0, savedY - maxScroll);
+        if (pad) pad.style.height = extra ? extra + "px" : "0px";
+        se.scrollTop = savedY;
+        if (host) host.scrollTop = inner;
+      }
+    }
+
+    function renderGridInner() {
+      const r = state.result;
+      if (!r) return;
+      const q = ($("search").value || "").toLowerCase();
+      const labels = r.labels || [];
+      const host = $("gridHost");
+      const qtyHeads = labels.map((l) => `<th class="qty" title="${l}"><span class="qty-label">${l}</span></th>`).join("");
+
+      if (state.tab === "versions") {
+        const families = r.version_families || [];
+        const matrix = currentMatrix();
+        fillVersionBar(matrix, families);
+        if (!matrix) {
+          const list = families.map((f) => `${f.familia_corta} (${f.n})`).join(", ");
+          host.innerHTML = `<p class="hint">Esta pestaña compara revisiones de la <strong>misma familia</strong> lado a lado (designator, codigo, Layer, Fitted).</p>
+            <p class="hint">Carga al menos dos BOM de la misma placa. Ahora: ${list || "ninguna familia detectada"}.</p>`;
+          return;
+        }
+        host.innerHTML = renderVersionMatrix(matrix, q);
+        bindExcelFilters(host.querySelector("table"));
+        return;
+      }
+      $("versionBar").classList.add("hidden");
+
+      if (state.tab === "exclusive") {
+        const rows = r.exclusive.filter((p) => JSON.stringify(p).toLowerCase().includes(q));
+        host.innerHTML = `<table id="grid" class="shrink"><thead><tr><th class="fit">Codigo</th><th class="fit">Producto</th><th class="fit">Qty</th><th class="fit">Referencia</th><th class="fit">Fabricante</th></tr></thead><tbody>` +
+          rows.map((p) => `<tr><td class="mono fit">${p.clave}</td><td class="fit">${p.producto}</td><td class="fit">${p.cantidad}</td><td class="mono fit">${p.referencia}</td><td class="fit">${p.fabricante}</td></tr>`).join("") +
+          `</tbody></table>`;
+        bindExcelFilters(host.querySelector("table"));
+        return;
+      }
+      const source = state.tab === "partial" ? r.partial : r.shared;
+      const rows = (source || []).filter((p) => JSON.stringify(p).toLowerCase().includes(q));
+      host.innerHTML = `<table id="grid"><thead><tr><th class="fit">Codigo</th><th class="fit">Referencia</th>${qtyHeads}</tr></thead><tbody>` +
+        rows.map((p) => {
+          const qtys = labels.map((l) => {
+            const qty = p.cantidades[l];
+            return qty == null ? `<td class="muted qty">—</td>` : `<td class="qty">${qty}</td>`;
+          }).join("");
+          return `<tr><td class="mono fit">${p.clave}</td><td class="mono fit">${p.referencia}</td>${qtys}</tr>`;
+        }).join("") + `</tbody></table>`;
+      bindExcelFilters(host.querySelector("table"));
+    }
+
+    (async function restore() {
+      setBusy(true, "Cargando archivos…");
+      try {
+        const data = await api("/api/files");
+        state.files = data.files || [];
+        renderFiles();
+        if (state.files.length === 1) {
+          $("dropNow").textContent = state.files[0].name;
+        } else if (state.files.length > 1) {
+          $("dropNow").textContent = `${state.files.length} archivos`;
+        }
+        if (state.files.length >= 2) {
+          setBusy(true, "Comparando…");
+          await runCompare();
+        }
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        setBusy(false);
+      }
+    })();
+  </script>
+</body>
+</html>

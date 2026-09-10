@@ -64,23 +64,23 @@ Hojas **Comunes**, **Diferencias**, **Exclusivos** y **Versiones** (una por fami
 ## Proyecto
 
 ```
-bom_compare/           Paquete (parseo, cruce, API, interfaz)
-tests/                 Pruebas sintéticas
+bom_compare/           Aplicacion: parseo, cruce, API e interfaz
+tests/                 Pruebas
+packaging/             Receta PyInstaller y arranque del .exe
+.github/workflows/     CI de tests
+pyproject.toml         Empaquetado y herramientas
 abrir_comparador.bat   Arranque web
 build_exe.bat          Empaquetado
-comparador.spec        Receta del .exe
-launch_comparador.py   Entrada del ejecutable
-requirements.txt
 ```
 
-La sesión web vive en memoria. Los archivos subidos se copian a `%TEMP%\comparador_bom`.
+La sesion web vive en memoria. Los archivos subidos se copian a `%TEMP%\comparador_bom`.
 
-API local en `127.0.0.1` (sin autenticación): `/api/files`, `/api/compare`, `/api/download`.
+API local en `127.0.0.1` (sin autenticacion): `/api/files`, `/api/compare`, `/api/download`.
 
 ```bat
-python -m pip install -r requirements.txt
-python -m unittest tests.test_compare
+python -m pip install -e ".[dev]"
+python -m pytest
 python -m bom_compare --web
 ```
 
-`dist/`, `build/` y el Excel de salida no van al repositorio.
+`build/` no va al repositorio. El zip `dist/ComparadorBOM.zip` si, para usarlo sin Python.

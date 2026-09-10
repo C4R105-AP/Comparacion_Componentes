@@ -3,7 +3,8 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
 
-ROOT = Path(SPECPATH)
+PACKAGING = Path(SPECPATH).resolve()
+ROOT = PACKAGING.parent
 STATIC_SRC = ROOT / "bom_compare" / "static"
 
 hiddenimports = [
@@ -48,7 +49,7 @@ excludes = [
 ]
 
 a = Analysis(
-    [str(ROOT / "launch_comparador.py")],
+    [str(PACKAGING / "launch_comparador.py")],
     pathex=[str(ROOT)],
     binaries=[],
     datas=[(str(STATIC_SRC), "static")],

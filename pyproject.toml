@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comparador-bom"
+version = "1.0.0"
+description = "Compara listas de materiales electronicas en Excel, en local."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "C4R105-AP" }]
+dependencies = [
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pyinstaller>=6.0",
+]
+exe = [
+    "pyinstaller>=6.0",
+]
+
+[project.scripts]
+comparador-bom = "bom_compare.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["bom_compare*"]
+
+[tool.setuptools.package-data]
+bom_compare = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

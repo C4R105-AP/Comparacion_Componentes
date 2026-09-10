@@ -1,6 +1,2 @@
-pandas>=2.2
-openpyxl>=3.1
-xlrd>=2.0
-fastapi>=0.110
-uvicorn>=0.27
-python-multipart>=0.0.9
+# Dependencias de ejecucion. La definicion canonica esta en pyproject.toml.
+-e .

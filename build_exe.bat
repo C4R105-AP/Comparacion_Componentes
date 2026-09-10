@@ -1,10 +1,10 @@
 @echo off
 cd /d "%~dp0"
 echo Instalando PyInstaller y dependencias...
-python -m pip install -r requirements.txt pyinstaller
+python -m pip install -r requirements-dev.txt
 if errorlevel 1 goto :fail
 echo Generando ComparadorBOM.exe...
-python -m PyInstaller --noconfirm comparador.spec
+python -m PyInstaller --noconfirm --distpath dist --workpath build packaging\comparador.spec
 if errorlevel 1 goto :fail
 echo.
 echo Listo: dist\ComparadorBOM\ComparadorBOM.exe
